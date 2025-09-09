@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # Training Coordinator Node
+  coordinator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: solanalm-coordinator
+    ports:
+      - "8001:8001"
+    environment:
+      - SOLANA_NETWORK=devnet
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+    command: ["python3", "core/coordinator/server.py"]
+    depends_on:
+      - redis
+    networks:
+      - solanalm-network
+
+  # Inference Gateway
+  inference:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: solanalm-inference
+    ports:
+      - "8000:8000"
+    environment:
+      - SOLANA_NETWORK=devnet
+    volumes:
+      - ./config:/app/config
+      - ./models:/app/models
+    command: ["python3", "core/inference/server.py"]
+    networks:
+      - solanalm-network
+
+  # Redis for Caching
+  redis:
+    image: redis:7-alpine
+    container_name: solanalm-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - solanalm-network
+
+  # PostgreSQL for Metadata
+  postgres:
+    image: postgres:15-alpine
+    container_name: solanalm-postgres
+    environment:
+      POSTGRES_DB: solanalm
+      POSTGRES_USER: solanalm
+      POSTGRES_PASSWORD: solanalm
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - solanalm-network
+
+  # Solana Test Validator (for development)
+  solana-test-validator:
+    image: solana/solana:v1.16.0
+    container_name: solanalm-solana-test
+    ports:
+      - "8899:8899"  # RPC
+      - "8900:8900"  # WebSocket
+      - "9900:9900"  # Faucet
+    command: ["solana-test-validator", "--reset"]
+    networks:
+      - solanalm-network
+
+networks:
+  solanalm-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

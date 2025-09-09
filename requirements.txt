@@ -1,0 +1,55 @@
+# SolanaLM Requirements
+
+## Core Dependencies
+
+### Blockchain
+solana-sdk>=1.16.0
+anchorpy>=0.18.0
+borsh-construct>=0.1.0
+
+### Machine Learning
+torch>=2.1.0
+torchvision>=0.16.0
+torchaudio>=2.1.0
+fedml>=0.8.0
+bitsandbytes>=0.41.0
+flash-attn>=2.0.0
+transformers>=4.35.0
+tokenizers>=0.15.0
+datasets>=2.14.0
+
+### Web Framework
+fastapi>=0.104.0
+uvicorn>=0.23.0
+pydantic>=2.4.0
+websockets>=12.0
+
+### Storage
+arweave-python-client>=1.0.0
+bundlr-network>=0.1.0
+
+### Utilities
+numpy>=1.24.0
+scipy>=1.11.0
+pyyaml>=6.0
+requests>=2.31.0
+aiohttp>=3.8.0
+asyncio-mqtt>=0.12.0
+
+## Development Dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+pre-commit>=3.4.0
+
+## Testing Dependencies
+pytest-cov>=4.1.0
+pytest-benchmark>=4.0.0
+hypothesis>=6.80.0
+
+## Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.4.0
+mkdocstrings>=0.23.0
