@@ -1,0 +1,339 @@
+# SolanaLM Security Configuration
+# Production-ready security settings and best practices
+
+# TLS/SSL Configuration
+tls:
+  enabled: true
+  cert_file: "/etc/ssl/certs/solanalm.crt"
+  key_file: "/etc/ssl/private/solanalm.key"
+  ca_file: "/etc/ssl/certs/ca-bundle.crt"
+  protocols:
+    - "TLSv1.2"
+    - "TLSv1.3"
+  ciphers:
+    - "ECDHE-RSA-AES256-GCM-SHA384"
+    - "ECDHE-RSA-AES128-GCM-SHA256"
+    - "ECDHE-RSA-AES256-SHA384"
+    - "ECDHE-RSA-AES128-SHA256"
+  verify_client: false
+
+# Authentication and Authorization
+auth:
+  # API Key authentication
+  api_keys:
+    enabled: true
+    admin_key_env: "SOLANALM_ADMIN_KEY"
+    user_key_header: "X-API-Key"
+    key_rotation_days: 90
+    rate_limit_per_key: 1000  # requests per hour
+
+  # Wallet-based authentication
+  wallet_auth:
+    enabled: true
+    signature_verification: true
+    nonce_timeout: 300  # seconds
+    message_template: "SolanaLM access request: {nonce} at {timestamp}"
+
+  # Node authentication
+  node_auth:
+    enabled: true
+    node_registration_key: true
+    heartbeat_signature: true
+    reputation_threshold: 0.7
+
+# Rate Limiting
+rate_limiting:
+  enabled: true
+  default_limits:
+    requests_per_minute: 60
+    requests_per_hour: 1000
+    requests_per_day: 10000
+
+  endpoint_limits:
+    "/inference":
+      requests_per_minute: 30
+      burst_size: 10
+    "/private_inference":
+      requests_per_minute: 10
+      burst_size: 3
+    "/training/*":
+      requests_per_minute: 5
+      burst_size: 2
+
+  premium_limits:  # For high-reputation nodes/users
+    requests_per_minute: 120
+    requests_per_hour: 5000
+    requests_per_day: 50000
+
+# Input Validation and Sanitization
+input_validation:
+  enabled: true
+  max_prompt_length: 10000
+  max_response_length: 50000
+  allowed_models:
+    - "gpt-3.5-turbo"
+    - "gpt-4"
+    - "claude-3"
+    - "llama-7b"
+    - "gpt-2"
+
+  blocked_patterns:
+    - "eval\\("
+    - "exec\\("
+    - "<script"
+    - "javascript:"
+    - "data:text/html"
+
+  sanitization:
+    remove_html: true
+    escape_sql: true
+    normalize_unicode: true
+
+# Privacy and Data Protection
+privacy:
+  # Request logging
+  logging:
+    log_requests: false  # Never log actual prompts in production
+    log_responses: false
+    log_metadata_only: true
+    retention_days: 30
+    anonymize_ips: true
+
+  # Data encryption
+  encryption:
+    at_rest: true
+    in_transit: true
+    key_rotation_days: 30
+    encryption_algorithm: "AES-256-GCM"
+
+  # Circuit isolation
+  circuit_isolation:
+    enabled: true
+    max_circuit_reuse: 1  # Each request gets fresh circuit
+    circuit_timeout: 300
+    node_exclusion_time: 3600  # Exclude failed nodes for 1 hour
+
+# Network Security
+network:
+  # Firewall rules
+  firewall:
+    enabled: true
+    allowed_ips: []  # Empty = allow all, specify IPs to whitelist
+    blocked_ips: []  # IPs to explicitly block
+    geo_blocking:
+      enabled: false
+      blocked_countries: []
+
+  # DDoS protection
+  ddos_protection:
+    enabled: true
+    connection_limit: 1000
+    request_burst_limit: 100
+    ban_duration: 3600  # seconds
+    detection_window: 60  # seconds
+
+  # Proxy and load balancer settings
+  proxy:
+    trust_proxy_headers: true
+    allowed_proxy_ips:
+      - "127.0.0.1"
+      - "::1"
+    real_ip_header: "X-Forwarded-For"
+
+# Solana Security
+solana:
+  # Wallet security
+  wallet_security:
+    hot_wallet_limit: 10.0  # SOL - maximum hot wallet balance
+    cold_storage_threshold: 100.0  # Move to cold storage above this
+    multi_sig_required: false
+    transaction_signing_timeout: 60
+
+  # Payment validation
+  payment_validation:
+    min_payment: 0.0001  # SOL
+    max_payment: 10.0    # SOL
+    verify_signatures: true
+    check_account_balance: true
+    slippage_tolerance: 0.05  # 5%
+
+  # Network settings
+  network_settings:
+    rpc_timeout: 30
+    commitment_level: "confirmed"
+    retry_attempts: 3
+    backup_rpc_urls:
+      - "https://api.mainnet-beta.solana.com"
+      - "https://solana-api.projectserum.com"
+
+# Node Security
+node_security:
+  # Registration security
+  registration:
+    require_stake: true
+    min_stake_amount: 1.0  # SOL
+    reputation_bond: 5.0   # SOL
+    kyc_required: false
+    geographic_verification: true
+
+  # Runtime security
+  runtime:
+    sandboxed_execution: true
+    resource_limits:
+      max_cpu_percent: 80
+      max_memory_mb: 4096
+      max_disk_mb: 10240
+      timeout_seconds: 300
+
+    monitoring:
+      performance_monitoring: true
+      security_monitoring: true
+      anomaly_detection: true
+      quarantine_on_suspicious: true
+
+# Monitoring and Alerting
+security_monitoring:
+  enabled: true
+
+  # Threat detection
+  threat_detection:
+    enabled: true
+    failed_auth_threshold: 10  # Failed attempts before alert
+    rate_limit_violations: 5   # Violations before ban
+    suspicious_patterns: true
+    geo_anomaly_detection: true
+
+  # Security logging
+  security_logging:
+    log_auth_attempts: true
+    log_rate_limit_hits: true
+    log_input_validation_failures: true
+    log_circuit_failures: true
+    siem_integration: false
+    siem_endpoint: null
+
+  # Alerting
+  alerts:
+    email_enabled: false
+    email_recipients: []
+    slack_webhook: null
+    pagerduty_key: null
+
+    alert_conditions:
+      - type: "high_failure_rate"
+        threshold: 0.1  # 10% failure rate
+        window: 300     # 5 minutes
+      - type: "ddos_attack"
+        threshold: 1000  # requests per minute
+        window: 60
+      - type: "unauthorized_access"
+        threshold: 5     # failed attempts
+        window: 300
+
+# Compliance and Auditing
+compliance:
+  # Audit logging
+  audit_logging:
+    enabled: true
+    log_file: "/var/log/solanalm/audit.log"
+    log_rotation: "daily"
+    retention_days: 365
+
+    audit_events:
+      - "user_authentication"
+      - "admin_actions"
+      - "payment_transactions"
+      - "node_registration"
+      - "configuration_changes"
+      - "privacy_violations"
+
+  # Data retention
+  data_retention:
+    user_data: 30      # days
+    transaction_logs: 365  # days
+    audit_logs: 2555   # 7 years
+    metrics_data: 90   # days
+
+  # Privacy compliance
+  privacy_compliance:
+    gdpr_compliance: true
+    ccpa_compliance: true
+    data_minimization: true
+    right_to_deletion: true
+    data_export: true
+
+# Incident Response
+incident_response:
+  enabled: true
+
+  # Automated responses
+  automated_responses:
+    ban_malicious_ips: true
+    quarantine_suspicious_nodes: true
+    scale_up_on_load: true
+    circuit_failover: true
+
+  # Response procedures
+  procedures:
+    security_breach: "/etc/solanalm/incident-response/breach.md"
+    ddos_attack: "/etc/solanalm/incident-response/ddos.md"
+    node_compromise: "/etc/solanalm/incident-response/node-compromise.md"
+    data_leak: "/etc/solanalm/incident-response/data-leak.md"
+
+  # Emergency contacts
+  contacts:
+    security_team: "security@solanalm.com"
+    legal_team: "legal@solanalm.com"
+    technical_lead: "tech-lead@solanalm.com"
+
+# Backup and Recovery
+backup_security:
+  # Backup encryption
+  encryption:
+    enabled: true
+    key_file: "/etc/solanalm/backup.key"
+    algorithm: "AES-256-CBC"
+
+  # Backup verification
+  verification:
+    checksum_validation: true
+    test_restore: true
+    integrity_check_frequency: "weekly"
+
+  # Access control
+  access_control:
+    backup_access_key: "SOLANALM_BACKUP_KEY"
+    authorized_users: ["admin", "backup-operator"]
+    multi_factor_auth: true
+
+# Development vs Production
+environments:
+  development:
+    tls:
+      enabled: false
+    auth:
+      api_keys:
+        enabled: false
+    rate_limiting:
+      enabled: false
+    privacy:
+      logging:
+        log_requests: true  # OK for development
+    security_monitoring:
+      enabled: false
+
+  production:
+    # All security features enabled by default
+    # Override specific settings as needed
+    tls:
+      enabled: true
+    auth:
+      api_keys:
+        enabled: true
+    rate_limiting:
+      enabled: true
+    privacy:
+      logging:
+        log_requests: false  # Never in production
+    security_monitoring:
+      enabled: true

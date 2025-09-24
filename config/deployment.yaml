@@ -1,0 +1,197 @@
+# SolanaLM Deployment Configuration
+# Configure deployment settings for different environments
+
+# Network configuration
+network:
+  name: "solanalm-local"
+  solana_network: "devnet"  # devnet, testnet, mainnet-beta
+  gateway_port: 8001
+
+# Gateway server configuration
+gateway:
+  host: "0.0.0.0"
+  port: 8001
+  workers: 1
+  privacy_enabled: true
+  monitoring_enabled: true
+  cors_enabled: true
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+
+# Node configuration
+nodes:
+  inference:
+    count: 3  # Number of inference nodes to deploy
+    base_port: 8100
+    privacy_enabled: true
+    models:
+      - "gpt-3.5-turbo"
+      - "gpt-4"
+      - "claude-3"
+    config:
+      max_concurrent_requests: 10
+      request_timeout: 60
+      health_check_interval: 30
+
+  training:
+    count: 2  # Number of training nodes to deploy
+    base_port: 8200
+    gpu_enabled: false  # Set to true if GPUs available
+    models:
+      - "gpt-2"
+      - "llama-7b"
+    config:
+      max_batch_size: 32
+      training_timeout: 3600
+      checkpoint_interval: 300
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  port: 8300
+  metrics_interval: 30  # seconds
+  retention_hours: 168  # 7 days
+  alerts:
+    enabled: true
+    email_notifications: false
+    webhook_url: null
+    thresholds:
+      min_active_nodes: 3
+      min_success_rate: 0.95
+      max_latency: 10.0
+      min_reputation: 0.8
+
+# Privacy network configuration
+privacy:
+  enabled: true
+  min_circuit_length: 3
+  max_circuit_length: 5
+  node_selection:
+    reputation_threshold: 0.8
+    geographic_diversity: true
+    network_diversity: true
+    exclude_countries: []  # Add countries to exclude if needed
+  payment_mixing:
+    enabled: true
+    min_participants: 5
+    max_participants: 20
+    timeout_seconds: 300
+
+# Security configuration
+security:
+  enable_tls: false  # Set to true for production
+  cert_file: null
+  key_file: null
+  api_keys:
+    enabled: false
+    admin_key: null
+  wallet_validation:
+    enabled: true
+    min_balance: 0.001  # SOL
+
+# Logging configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "logs/deployment.log"
+  max_file_size: "100MB"
+  backup_count: 5
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Database configuration (optional)
+database:
+  enabled: false
+  type: "sqlite"  # sqlite, postgresql, mongodb
+  url: "sqlite:///data/solanalm.db"
+  connection_pool_size: 10
+
+# Development settings
+development:
+  hot_reload: true
+  debug_mode: false
+  mock_payments: true
+  test_wallets:
+    - "dev-wallet-1"
+    - "dev-wallet-2"
+    - "dev-wallet-3"
+
+# Production settings
+production:
+  workers: 4
+  max_connections: 1000
+  connection_timeout: 30
+  keep_alive_timeout: 5
+  backups:
+    enabled: true
+    interval_hours: 24
+    retention_days: 30
+  scaling:
+    auto_scaling: false
+    min_nodes: 5
+    max_nodes: 50
+    cpu_threshold: 80
+    memory_threshold: 85
+
+# Environment-specific overrides
+environments:
+  development:
+    gateway:
+      workers: 1
+      cors_enabled: true
+    nodes:
+      inference:
+        count: 2
+      training:
+        count: 1
+    monitoring:
+      metrics_interval: 10
+    logging:
+      level: "DEBUG"
+    development:
+      debug_mode: true
+      mock_payments: true
+
+  staging:
+    network:
+      solana_network: "testnet"
+    gateway:
+      workers: 2
+    nodes:
+      inference:
+        count: 5
+      training:
+        count: 3
+    security:
+      enable_tls: true
+      api_keys:
+        enabled: true
+    development:
+      mock_payments: false
+
+  production:
+    network:
+      solana_network: "mainnet-beta"
+    gateway:
+      workers: 4
+    nodes:
+      inference:
+        count: 10
+      training:
+        count: 5
+    security:
+      enable_tls: true
+      api_keys:
+        enabled: true
+      wallet_validation:
+        min_balance: 0.01
+    monitoring:
+      alerts:
+        enabled: true
+        email_notifications: true
+    development:
+      debug_mode: false
+      mock_payments: false
+    production:
+      auto_scaling: true
+      backups:
+        enabled: true

@@ -14,26 +14,31 @@ services:
     volumes:
       - ./config:/app/config
       - ./data:/app/data
-    command: ["python3", "core/coordinator/server.py"]
+    command: ["python3", "scripts/run_gateway.py"]
     depends_on:
       - redis
     networks:
       - solanalm-network
 
-  # Inference Gateway
-  inference:
+  # Example Inference Node
+  inference-node:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile
-    container_name: solanalm-inference
+    container_name: solanalm-inference-node
     ports:
-      - "8000:8000"
+      - "8100:8100"
     environment:
       - SOLANA_NETWORK=devnet
+      - NODE_ID=docker-inference-node
+      - WALLET_ADDRESS=DockerInferenceWallet123
+      - NODE_TYPE=inference
+      - GATEWAY_URL=http://coordinator:8001
     volumes:
-      - ./config:/app/config
-      - ./models:/app/models
-    command: ["python3", "core/inference/server.py"]
+      - ../models:/app/models
+    command: ["python3", "scripts/run_node.py", "--type", "inference", "--port", "8100"]
+    depends_on:
+      - coordinator
     networks:
       - solanalm-network
 
