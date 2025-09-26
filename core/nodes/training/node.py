@@ -30,6 +30,7 @@ from core.models.schemas import (
     TrainingUpdate,
     TrainingRound
 )
+from core.training.federated_learning import fl_manager, FederatedUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,11 @@ class TrainingNode:
         @self.app.get("/capabilities")
         async def get_capabilities():
             return await self.get_node_capabilities()
+
+        @self.app.post("/federated/participate")
+        async def participate_in_federated_learning(round_config: Dict[str, Any]):
+            """Participate in federated learning round"""
+            return await self.participate_in_federated_round(round_config)
 
     async def initialize(self):
         """Initialize the training node"""
@@ -404,6 +410,35 @@ class TrainingNode:
         except Exception as e:
             logger.error(f"Failed to apply global weights: {e}")
             raise
+
+    async def participate_in_federated_round(self, round_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Participate in federated learning round using the FL manager"""
+        logger.info(f"Node {self.node_id} participating in federated learning round")
+
+        try:
+            # Use the federated learning manager to simulate training
+            update = fl_manager.simulate_local_training(
+                node_id=self.node_id,
+                training_data=fl_manager.create_training_data(50)  # 50 samples for this node
+            )
+
+            # Convert to response format
+            return {
+                "node_id": self.node_id,
+                "status": "completed",
+                "loss": update.loss,
+                "samples_processed": update.samples_processed,
+                "epochs": update.epoch,
+                "model_updated": True
+            }
+
+        except Exception as e:
+            logger.error(f"Federated learning participation failed: {e}")
+            return {
+                "node_id": self.node_id,
+                "status": "failed",
+                "error": str(e)
+            }
 
     async def run(self):
         """Start the training node server"""

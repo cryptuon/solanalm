@@ -6,7 +6,8 @@ Centralized configuration for all network components.
 
 import os
 from typing import Optional, Dict, Any
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 from enum import Enum
 
 
@@ -96,9 +97,7 @@ class SolanaLMConfig(BaseSettings):
         description="IPFS or Arweave endpoint for gradient storage"
     )
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = {"extra": "ignore", "env_file": ".env", "case_sensitive": False}
 
 
 class NodeConfig(BaseSettings):
@@ -134,9 +133,7 @@ class NodeConfig(BaseSettings):
     price_per_token: float = Field(default=0.0001, env="PRICE_PER_TOKEN")
     minimum_payment: float = Field(default=0.0005, env="MINIMUM_PAYMENT")
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = {"extra": "ignore", "env_file": ".env", "case_sensitive": False}
 
 
 def get_settings() -> SolanaLMConfig:
