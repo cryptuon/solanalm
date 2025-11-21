@@ -1,0 +1,65 @@
+\contentsline {section}{\numberline {1}Introduction}{4}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Our Solution}{4}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Design Principles}{4}{subsection.1.2}%
+\contentsline {section}{\numberline {2}Background and Motivation}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}The AI Compute Crisis}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Why Solana?}{5}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Federated Learning Opportunity}{5}{subsection.2.3}%
+\contentsline {section}{\numberline {3}System Architecture}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Network Overview}{5}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Node Types}{6}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Inference Nodes}{6}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}Training Nodes}{6}{subsubsection.3.2.2}%
+\contentsline {subsubsection}{\numberline {3.2.3}Proxy Nodes}{6}{subsubsection.3.2.3}%
+\contentsline {subsubsection}{\numberline {3.2.4}Hybrid Nodes}{6}{subsubsection.3.2.4}%
+\contentsline {subsection}{\numberline {3.3}Gateway Layer}{7}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Registry System}{7}{subsection.3.4}%
+\contentsline {section}{\numberline {4}Economic Model and Tokenomics}{7}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Dual Revenue Streams}{7}{subsection.4.1}%
+\contentsline {subsubsection}{\numberline {4.1.1}Inference Revenue}{7}{subsubsection.4.1.1}%
+\contentsline {subsubsection}{\numberline {4.1.2}Training Revenue}{7}{subsubsection.4.1.2}%
+\contentsline {subsection}{\numberline {4.2}Payment Mechanisms}{8}{subsection.4.2}%
+\contentsline {subsubsection}{\numberline {4.2.1}Micro-Payments}{8}{subsubsection.4.2.1}%
+\contentsline {subsubsection}{\numberline {4.2.2}Payment Channels}{8}{subsubsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.3}Fee Structure}{8}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Staking and Reputation}{8}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Economic Sustainability}{9}{subsection.4.5}%
+\contentsline {section}{\numberline {5}SOLALM Token}{9}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Token Utility}{9}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Supply and Distribution}{9}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Deflationary Mechanisms}{9}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Staking Rewards}{10}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Token Demand Flywheel}{10}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}Market Opportunity}{10}{subsection.5.6}%
+\contentsline {subsection}{\numberline {5.7}Growth Catalysts}{11}{subsection.5.7}%
+\contentsline {section}{\numberline {6}Privacy and Security}{11}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Threat Model}{11}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Onion Routing}{11}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Anonymous Payments}{11}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Secure Aggregation for Federated Learning}{11}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Cryptographic Verification}{12}{subsection.6.5}%
+\contentsline {section}{\numberline {7}Federated Learning Protocol}{12}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Training Round Lifecycle}{12}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Contribution Scoring}{12}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Byzantine Fault Tolerance}{12}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Model Governance}{13}{subsection.7.4}%
+\contentsline {section}{\numberline {8}Technical Implementation}{13}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Client SDK}{13}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Hardware Detection}{13}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Model Support}{13}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Deployment Options}{13}{subsection.8.4}%
+\contentsline {section}{\numberline {9}Use Cases and Applications}{14}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Privacy-Sensitive Inference}{14}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Decentralized AI Applications}{14}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Collaborative Model Training}{14}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}GPU Monetization}{14}{subsection.9.4}%
+\contentsline {section}{\numberline {10}Roadmap}{14}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Phase 1: Foundation (Completed)}{14}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Phase 2: Token Launch (Completed)}{15}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Phase 3: Mainnet \& Privacy (Current)}{15}{subsection.10.3}%
+\contentsline {subsection}{\numberline {10.4}Phase 4: Scale \& Enterprise}{16}{subsection.10.4}%
+\contentsline {subsection}{\numberline {10.5}Phase 5: Global Dominance}{16}{subsection.10.5}%
+\contentsline {section}{\numberline {11}Conclusion}{16}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Technical Innovation Summary}{16}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Investment Thesis}{17}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Call to Action}{17}{subsection.11.3}%
