@@ -1,0 +1,9 @@
+# MkDocs and dependencies
+mkdocs>=1.5.0
+mkdocs-material>=9.4.0
+mkdocstrings>=0.24.0
+mkdocstrings-python>=1.7.0
+pymdown-extensions>=10.0
+
+# Optional: for mermaid diagrams
+mkdocs-mermaid2-plugin>=1.1.0
