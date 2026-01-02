@@ -99,7 +99,34 @@ Once running, access these endpoints:
 | Gateway API | http://localhost:8001 | Main API endpoint |
 | Health Check | http://localhost:8001/health | System health status |
 | Metrics | http://localhost:8001/metrics | Prometheus metrics |
-| Admin Dashboard | http://localhost:8080 | Real-time monitoring UI |
+| Web Dashboard | http://localhost:5173 | Vue.js monitoring UI |
+
+## Monitoring Options
+
+### Web Dashboard
+
+Start the Vue.js dashboard for visual monitoring:
+
+```bash
+cd frontend
+npm install && npm run dev
+```
+
+Access at `http://localhost:5173`
+
+### Terminal TUI
+
+Use the terminal-based dashboard for command-line monitoring:
+
+```bash
+# Monitor a running node
+python -m core.tui --node-url http://localhost:8100
+
+# Use light theme
+python -m core.tui --theme light
+```
+
+Keyboard shortcuts: `1-4` switch tabs, `r` refresh, `q` quit
 
 ## Example: Complete Inference Flow
 
@@ -204,5 +231,7 @@ Now that you have SolanaLM running:
 
 - [Configure your environment](configuration.md) for your use case
 - [Explore the Python SDK](../guides/python-sdk.md) in depth
+- [Use the Terminal TUI](../guides/tui.md) for monitoring nodes
+- [Set up the Web Dashboard](../guides/frontend-dashboard.md) for visual monitoring
 - [Set up nodes](../guides/running-nodes.md) for earning SOL
 - [Learn about privacy features](../guides/privacy.md) for sensitive workloads

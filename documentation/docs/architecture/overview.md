@@ -7,13 +7,13 @@ SolanaLM is a hybrid decentralized network combining LLM inference and federated
 ```
 ┌────────────────────────────────────────────────────────────────────┐
 │                         Client Layer                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐ │
-│  │  Python SDK  │  │  OpenAI API  │  │  REST/WebSocket Clients  │ │
-│  └──────┬───────┘  └──────┬───────┘  └────────────┬─────────────┘ │
-└─────────┼─────────────────┼────────────────────────┼───────────────┘
-          │                 │                        │
-          └─────────────────┼────────────────────────┘
-                            │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌────────────────┐  │
+│  │ Python SDK│  │ OpenAI API│  │ Web UI    │  │ Terminal TUI   │  │
+│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └───────┬────────┘  │
+└────────┼──────────────┼──────────────┼────────────────┼────────────┘
+         │              │              │                │
+         └──────────────┴──────────────┴────────────────┘
+                                │
 ┌───────────────────────────▼────────────────────────────────────────┐
 │                        Gateway Layer                                │
 │  ┌──────────────────────────────────────────────────────────────┐  │
@@ -47,6 +47,51 @@ SolanaLM is a hybrid decentralized network combining LLM inference and federated
 │  └──────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────┘
 ```
+
+## User Interfaces
+
+SolanaLM provides multiple interfaces for interacting with the network:
+
+### Web Dashboard
+
+A Vue.js-based web interface for visual monitoring:
+
+- Real-time metrics and charts
+- Node management UI
+- Training round visualization
+- Earnings tracking
+
+**Location:** `frontend/`
+
+```bash
+cd frontend && npm run dev
+```
+
+### Terminal TUI
+
+A Textual-based terminal dashboard for command-line users:
+
+- Dashboard with node status
+- Live log streaming
+- Training monitoring
+- SSH-friendly operation
+
+**Location:** `core/tui/`
+
+```bash
+python -m core.tui --node-url http://localhost:8100
+```
+
+### Python SDK
+
+Programmatic access for automation and integration:
+
+```python
+async with SolanaLMClient("http://localhost:8001") as client:
+    response = await client.inference(...)
+```
+
+**Location:** `client/python/`
 
 ## Core Components
 

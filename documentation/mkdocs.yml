@@ -81,6 +81,8 @@ nav:
   - User Guides:
     - Python SDK: guides/python-sdk.md
     - Running Nodes: guides/running-nodes.md
+    - Terminal TUI: guides/tui.md
+    - Web Dashboard: guides/frontend-dashboard.md
     - Federated Learning: guides/federated-learning.md
     - Privacy Features: guides/privacy.md
   - API Reference:
@@ -105,4 +107,4 @@ extra:
     - icon: fontawesome/brands/twitter
       link: https://twitter.com/SolanaLM
 
-copyright: Copyright &copy; 2024 SolanaLM Team
+copyright: Copyright &copy; 2025 SolanaLM Team

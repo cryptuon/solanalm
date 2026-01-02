@@ -1,0 +1,135 @@
+/* SolanaLM TUI Styles */
+
+/* Base screen styling */
+Screen {
+    background: $surface;
+}
+
+/* Header styling */
+Header {
+    dock: top;
+    background: $primary;
+}
+
+/* Footer styling */
+Footer {
+    dock: bottom;
+    background: $surface;
+}
+
+/* Tab content */
+TabbedContent {
+    height: 1fr;
+}
+
+TabPane {
+    padding: 1;
+}
+
+/* Section titles */
+.section-title {
+    text-style: bold;
+    padding: 0 0 1 0;
+    color: $primary;
+}
+
+/* Status indicators */
+.status-online, .connected {
+    color: $success;
+}
+
+.status-offline, .disconnected {
+    color: $error;
+}
+
+.status-busy {
+    color: $warning;
+}
+
+/* Severity colors for logs/events */
+.info {
+    color: $text;
+}
+
+.warning {
+    color: $warning;
+}
+
+.error {
+    color: $error;
+}
+
+/* Stats cards */
+StatCard {
+    width: 1fr;
+    height: 5;
+    border: solid $primary;
+    padding: 0 1;
+    margin: 0 1;
+}
+
+StatCard .label {
+    color: $text-muted;
+}
+
+StatCard .value {
+    color: $text;
+    text-style: bold;
+}
+
+/* Hardware gauges */
+GaugeWidget {
+    height: 3;
+    padding: 0 1;
+}
+
+GaugeWidget ProgressBar {
+    width: 1fr;
+}
+
+/* Activity feed */
+ActivityItem {
+    height: 1;
+    padding: 0 1;
+}
+
+/* Panels */
+StatsPanel, HardwareGauges, GatewayStatus, ModelInfo, ActivityFeed {
+    border: solid $primary;
+    padding: 1;
+    margin: 0 0 1 0;
+}
+
+/* Data tables */
+DataTable {
+    height: 1fr;
+}
+
+DataTable > .datatable--header {
+    text-style: bold;
+    background: $surface;
+}
+
+/* Progress bars */
+ProgressBar {
+    padding: 0;
+}
+
+ProgressBar Bar {
+    color: $primary;
+}
+
+/* Input fields */
+Input {
+    border: solid $primary;
+}
+
+Input:focus {
+    border: solid $secondary;
+}
+
+/* Rich log */
+RichLog {
+    border: solid $primary;
+    padding: 1;
+}

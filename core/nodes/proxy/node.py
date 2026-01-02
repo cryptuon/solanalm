@@ -8,6 +8,8 @@ Solana payments and maintaining the same interface as inference nodes.
 import asyncio
 import logging
 import time
+import uuid
+from datetime import datetime
 from typing import Optional, Dict, Any, List
 import aiohttp
 from fastapi import FastAPI, HTTPException
@@ -23,6 +25,7 @@ from core.models.schemas import (
     HardwareSpecs,
     PricingConfig
 )
+from core.nodes.api import NodeAPIRouter
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +78,12 @@ class ProxyNode:
 
         # Status
         self.is_ready = False
+        self.is_paused = False
+        self.gateway_connected = False
+        self.start_time = datetime.utcnow()
+        self.node_type = NodeType.PROXY
+        self.available_models: List[str] = []
+
         self.stats = {
             "requests_served": 0,
             "total_tokens_generated": 0,
@@ -82,6 +91,10 @@ class ProxyNode:
             "errors": 0,
             "api_costs_usd": 0.0
         }
+
+        # Initialize Node API Router for dashboard
+        self.node_api = NodeAPIRouter(self)
+        self.node_api.mount_to_app(self.app)
 
     def _setup_routes(self):
         """Setup FastAPI routes"""
@@ -133,11 +146,15 @@ class ProxyNode:
         if not self.is_ready:
             raise HTTPException(status_code=503, detail="Node not ready")
 
+        if self.is_paused:
+            raise HTTPException(status_code=503, detail="Node is paused")
+
         if request.model not in self.api_configs:
             raise HTTPException(status_code=400, detail=f"Unsupported model: {request.model}")
 
         start_time = time.time()
         config = self.api_configs[request.model]
+        request_id = request.request_id or str(uuid.uuid4())
 
         try:
             # Route to appropriate provider
@@ -165,8 +182,26 @@ class ProxyNode:
             markup_multiplier = 2.0  # 2x markup over API cost
             cost_sol = (api_cost_usd * markup_multiplier) / 50  # Assume 1 SOL = $50
 
+            # Record request via node_api
+            await self.node_api.record_request(
+                request_id=request_id,
+                model=request.model,
+                prompt_tokens=len(request.prompt.split()),  # Rough estimate
+                completion_tokens=tokens_generated,
+                processing_time=processing_time,
+                cost_sol=cost_sol,
+                success=True
+            )
+
+            # Record earning
+            await self.node_api.record_earning(
+                amount_sol=cost_sol,
+                payment_type="inference",
+                request_id=request_id
+            )
+
             return InferenceResponse(
-                request_id=request.request_id,
+                request_id=request_id,
                 model=request.model,
                 response=response_text,
                 processing_time=processing_time,
@@ -178,6 +213,19 @@ class ProxyNode:
         except Exception as e:
             self.stats["errors"] += 1
             logger.error(f"Proxy inference failed: {e}")
+
+            # Record failed request
+            await self.node_api.record_request(
+                request_id=request_id,
+                model=request.model,
+                prompt_tokens=len(request.prompt.split()),
+                completion_tokens=0,
+                processing_time=time.time() - start_time,
+                cost_sol=0,
+                success=False,
+                error_message=str(e)
+            )
+
             raise HTTPException(status_code=500, detail=str(e))
 
     async def _call_openai_api(self, request: InferenceRequest, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -317,11 +365,20 @@ class ProxyNode:
                     json=capabilities.dict()
                 ) as response:
                     if response.status == 200:
+                        self.gateway_connected = True
                         logger.info("Successfully registered proxy node with gateway")
+                        await self.node_api.emit_event(
+                            event_type="gateway_connected",
+                            title="Gateway Connected",
+                            description=f"Connected to gateway at {self.gateway_url}",
+                            severity="info"
+                        )
                     else:
+                        self.gateway_connected = False
                         logger.error(f"Gateway registration failed: {response.status}")
 
         except Exception as e:
+            self.gateway_connected = False
             logger.error(f"Failed to register with gateway: {e}")
 
     async def run(self):

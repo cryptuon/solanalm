@@ -7,6 +7,7 @@ Serves local LLM inference requests and handles registration with the gateway.
 import asyncio
 import logging
 import time
+from datetime import datetime
 from typing import Optional, Dict, Any
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -23,6 +24,7 @@ from core.models.schemas import (
     HardwareSpecs,
     PricingConfig
 )
+from core.nodes.api import NodeAPIRouter
 
 logger = logging.getLogger(__name__)
 
@@ -57,12 +59,20 @@ class InferenceNode:
 
         # Status
         self.is_ready = False
+        self.is_paused = False
+        self.gateway_connected = False
+        self.start_time = datetime.utcnow()
+        self.node_type = NodeType.INFERENCE
         self.stats = {
             "requests_served": 0,
             "total_tokens_generated": 0,
             "total_processing_time": 0.0,
             "errors": 0
         }
+
+        # Initialize Node API Router for dashboard
+        self.node_api = NodeAPIRouter(self)
+        self.node_api.mount_to_app(self.app)
 
     def _setup_routes(self):
         """Setup FastAPI routes"""
@@ -117,7 +127,11 @@ class InferenceNode:
         if not self.is_ready:
             raise HTTPException(status_code=503, detail="Node not ready")
 
+        if self.is_paused:
+            raise HTTPException(status_code=503, detail="Node is paused")
+
         start_time = time.time()
+        prompt_tokens = 0
 
         try:
             # Tokenize input
@@ -128,6 +142,8 @@ class InferenceNode:
                 truncation=True,
                 max_length=512
             ).to(self.device)
+
+            prompt_tokens = len(inputs.input_ids[0])
 
             # Generate response
             with torch.no_grad():
@@ -162,6 +178,24 @@ class InferenceNode:
             # Calculate cost (simple pricing for now)
             cost_sol = 0.001 + (tokens_generated * 0.0001)
 
+            # Record request with NodeAPIRouter for dashboard
+            await self.node_api.record_request(
+                request_id=request.request_id,
+                model=self.model_name,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=tokens_generated,
+                processing_time=processing_time,
+                cost_sol=cost_sol,
+                success=True,
+            )
+
+            # Record earning
+            await self.node_api.record_earning(
+                amount_sol=cost_sol,
+                payment_type="inference",
+                request_id=request.request_id,
+            )
+
             return InferenceResponse(
                 request_id=request.request_id,
                 model=self.model_name,
@@ -175,6 +209,19 @@ class InferenceNode:
         except Exception as e:
             self.stats["errors"] += 1
             logger.error(f"Inference processing failed: {e}")
+
+            # Record failed request
+            await self.node_api.record_request(
+                request_id=request.request_id,
+                model=self.model_name,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=0,
+                processing_time=time.time() - start_time,
+                cost_sol=0.0,
+                success=False,
+                error_message=str(e),
+            )
+
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_node_capabilities(self) -> NodeCapabilities:
@@ -242,11 +289,17 @@ class InferenceNode:
                 ) as response:
                     if response.status == 200:
                         logger.info(f"Successfully registered with gateway")
+                        self.gateway_connected = True
+                        self.registered_with_gateway = True
+                        await self.node_api.event_emitter.emit_gateway_status(True)
                     else:
                         logger.error(f"Gateway registration failed: {response.status}")
+                        self.gateway_connected = False
 
         except Exception as e:
             logger.error(f"Failed to register with gateway: {e}")
+            self.gateway_connected = False
+            await self.node_api.event_emitter.emit_gateway_status(False)
 
     async def run(self):
         """Start the inference node server"""

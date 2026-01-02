@@ -11,6 +11,7 @@ import logging
 import time
 import os
 import tempfile
+from datetime import datetime
 from typing import Optional, Dict, Any, List
 import torch
 import torch.nn as nn
@@ -31,6 +32,7 @@ from core.models.schemas import (
     TrainingRound
 )
 from core.training.federated_learning import fl_manager, FederatedUpdate
+from core.nodes.api import NodeAPIRouter
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,12 @@ class TrainingNode:
 
         # Status
         self.is_ready = False
+        self.is_paused = False
+        self.gateway_connected = False
+        self.start_time = datetime.utcnow()
+        self.node_type = NodeType.TRAINING
+        self.training_history: List[Dict[str, Any]] = []
+
         self.stats = {
             "rounds_participated": 0,
             "total_training_time": 0.0,
@@ -77,6 +85,10 @@ class TrainingNode:
             "rewards_earned": 0.0,
             "average_loss": 0.0
         }
+
+        # Initialize Node API Router for dashboard
+        self.node_api = NodeAPIRouter(self)
+        self.node_api.mount_to_app(self.app)
 
     def _setup_routes(self):
         """Setup FastAPI routes"""
@@ -206,6 +218,14 @@ class TrainingNode:
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = learning_rate
 
+            # Emit training started event
+            await self.node_api.emit_training_update(
+                round_id=self.current_round.round_id,
+                status="training",
+                progress=0.0,
+                loss=None
+            )
+
             # Perform local training
             training_results = await self._train_local_model(
                 batch_size=batch_size,
@@ -217,6 +237,32 @@ class TrainingNode:
             self.stats["samples_trained"] += training_results["samples_processed"]
             self.stats["average_loss"] = training_results["final_loss"]
 
+            # Record training history
+            self.training_history.append({
+                "round_id": self.current_round.round_id,
+                "completed_at": datetime.utcnow().isoformat(),
+                "loss": training_results["final_loss"],
+                "samples": training_results["samples_processed"],
+                "duration": training_results["training_time"]
+            })
+
+            # Emit training completed event
+            await self.node_api.emit_training_update(
+                round_id=self.current_round.round_id,
+                status="completed",
+                progress=1.0,
+                loss=training_results["final_loss"]
+            )
+
+            # Record potential earnings from training
+            if self.current_round.reward_per_node:
+                await self.node_api.record_earning(
+                    amount_sol=self.current_round.reward_per_node,
+                    payment_type="training",
+                    round_id=self.current_round.round_id
+                )
+                self.stats["rewards_earned"] += self.current_round.reward_per_node
+
             return {
                 "status": "training_completed",
                 "round_id": self.current_round.round_id,
@@ -226,6 +272,13 @@ class TrainingNode:
 
         except Exception as e:
             logger.error(f"Training failed: {e}")
+            # Emit training failed event
+            await self.node_api.emit_training_update(
+                round_id=self.current_round.round_id if self.current_round else "unknown",
+                status="failed",
+                progress=0.0,
+                loss=None
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     async def _train_local_model(
@@ -388,11 +441,20 @@ class TrainingNode:
                     json=capabilities.dict()
                 ) as response:
                     if response.status == 200:
+                        self.gateway_connected = True
                         logger.info("Successfully registered training node with gateway")
+                        await self.node_api.emit_event(
+                            event_type="gateway_connected",
+                            title="Gateway Connected",
+                            description=f"Connected to gateway at {self.gateway_url}",
+                            severity="info"
+                        )
                     else:
+                        self.gateway_connected = False
                         logger.error(f"Gateway registration failed: {response.status}")
 
         except Exception as e:
+            self.gateway_connected = False
             logger.error(f"Failed to register with gateway: {e}")
 
     async def apply_global_model(self, global_weights: Dict[str, Any]):
