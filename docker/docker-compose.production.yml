@@ -1,0 +1,237 @@
+version: '3.8'
+
+# Production Docker Compose for SolanaLM
+# Usage: docker-compose -f docker/docker-compose.production.yml up -d
+#
+# Prerequisites:
+# 1. Create .env.production with required secrets
+# 2. Place SSL certificates in docker/nginx/ssl/
+# 3. Create Docker secrets (see secrets section below)
+
+services:
+  # Nginx Reverse Proxy with TLS
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: solanalm-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - solanalm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # SolanaLM Gateway (API Server)
+  gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.production
+    container_name: solanalm-gateway
+    expose:
+      - "8001"
+    environment:
+      - SOLANALM_ENVIRONMENT=testnet
+      - SOLANA_NETWORK=testnet
+      - SOLANA_RPC_URL=https://api.testnet.solana.com
+      - DATABASE_URL=postgresql://solanalm:${POSTGRES_PASSWORD}@postgres:5432/solanalm
+      - REDIS_URL=redis://redis:6379/0
+      - GATEWAY_HOST=0.0.0.0
+      - GATEWAY_PORT=8001
+      - GATEWAY_WORKERS=4
+      # Secrets from Docker secrets
+      - JWT_SECRET_KEY_FILE=/run/secrets/jwt_secret
+      - ADMIN_API_KEY_FILE=/run/secrets/admin_api_key
+      - TREASURY_KEYFILE_PATH=/run/secrets/treasury_keyfile
+    secrets:
+      - jwt_secret
+      - admin_api_key
+      - treasury_keyfile
+    volumes:
+      - gateway_data:/app/data
+      - gateway_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - solanalm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: solanalm-postgres
+    environment:
+      POSTGRES_DB: solanalm
+      POSTGRES_USER: solanalm
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - solanalm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U solanalm -d solanalm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: solanalm-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - solanalm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  # Inference Node (optional - can be scaled)
+  inference-node:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.production
+    container_name: solanalm-inference-node
+    environment:
+      - SOLANALM_ENVIRONMENT=testnet
+      - SOLANA_NETWORK=testnet
+      - NODE_TYPE=inference
+      - GATEWAY_URL=http://gateway:8001
+      - NODE_ID=${INFERENCE_NODE_ID:-inference-node-1}
+      - WALLET_ADDRESS=${INFERENCE_NODE_WALLET}
+    volumes:
+      - models_cache:/app/models
+    command: ["python3", "scripts/run_node.py", "--type", "inference", "--port", "8100"]
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - solanalm-network
+    restart: unless-stopped
+    profiles:
+      - with-nodes
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 2G
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Training Node (optional - can be scaled)
+  training-node:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.production
+    container_name: solanalm-training-node
+    environment:
+      - SOLANALM_ENVIRONMENT=testnet
+      - SOLANA_NETWORK=testnet
+      - NODE_TYPE=training
+      - GATEWAY_URL=http://gateway:8001
+      - NODE_ID=${TRAINING_NODE_ID:-training-node-1}
+      - WALLET_ADDRESS=${TRAINING_NODE_WALLET}
+    volumes:
+      - models_cache:/app/models
+      - training_data:/app/training_data
+    command: ["python3", "scripts/run_node.py", "--type", "training", "--port", "8200"]
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - solanalm-network
+    restart: unless-stopped
+    profiles:
+      - with-nodes
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+        reservations:
+          memory: 4G
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+networks:
+  solanalm-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  gateway_data:
+    driver: local
+  gateway_logs:
+    driver: local
+  nginx_logs:
+    driver: local
+  models_cache:
+    driver: local
+  training_data:
+    driver: local
+
+# Docker secrets - create before running:
+# echo "your-jwt-secret-key-here" | docker secret create jwt_secret -
+# echo "your-admin-api-key-here" | docker secret create admin_api_key -
+# cat treasury-keypair.json | docker secret create treasury_keyfile -
+# echo "your-postgres-password" | docker secret create postgres_password -
+secrets:
+  jwt_secret:
+    external: true
+  admin_api_key:
+    external: true
+  treasury_keyfile:
+    external: true
+  postgres_password:
+    external: true

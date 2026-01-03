@@ -187,3 +187,32 @@ AppleDouble
 .DS_Store?
 ehthumbs.db
 Thumbs.db
+
+# SolanaLM Production Secrets
+docker/nginx/ssl/*.pem
+docker/nginx/ssl/*.key
+docker/nginx/ssl/*.crt
+docker/secrets/
+*.keyfile
+*-keypair.json
+treasury-*.json
+
+# Production environment files
+.env.production
+.env.local
+.env.*.local
+
+# Database files
+*.db
+*.sqlite
+
+# Solana wallet files
+*.json.bak
+
+# Log files
+logs/
+*.log
+
+# Model cache
+models/
+model_cache/

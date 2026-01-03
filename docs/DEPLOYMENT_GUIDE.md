@@ -89,103 +89,103 @@ ANTHROPIC_API_KEY=your-anthropic-key
 
 ## Docker Deployment
 
-### Single Container
+### Development Setup
 ```bash
 # Build image
-docker build -t solanalm:latest .
+docker build -t solanalm:latest -f docker/Dockerfile .
 
-# Run gateway
-docker run -d --name solanalm-gateway \
-  -p 8001:8001 \
-  -e SOLANA_NETWORK=devnet \
-  -e JWT_SECRET=your-secret \
-  solanalm:latest python scripts/run_gateway.py
-
-# Run inference node
-docker run -d --name solanalm-node-1 \
-  -p 8100:8100 \
-  -e NODE_TYPE=inference \
-  -e NODE_ID=node-1 \
-  -e WALLET_ADDRESS=your-wallet \
-  -e GATEWAY_URL=http://gateway:8001 \
-  --link solanalm-gateway:gateway \
-  solanalm:latest python scripts/run_node.py
+# Run with development docker-compose
+docker-compose -f docker/docker-compose.yml up -d
 ```
 
-### Docker Compose
+### Production Deployment with TLS
+
+For production, use the dedicated production docker-compose with nginx TLS termination and Docker secrets:
+
+```bash
+# 1. Create Docker secrets (required before first run)
+echo "your-very-secure-jwt-secret-key-at-least-32-chars" | docker secret create jwt_secret -
+echo "your-secure-admin-api-key-at-least-32-characters" | docker secret create admin_api_key -
+echo "your-secure-postgres-password" | docker secret create postgres_password -
+
+# 2. Generate or copy SSL certificates to docker/nginx/ssl/
+#    - fullchain.pem (certificate chain)
+#    - privkey.pem (private key)
+
+# 3. Create treasury keypair (or use existing)
+solana-keygen new -o treasury-keypair.json --no-bip39-passphrase
+cat treasury-keypair.json | docker secret create treasury_keyfile -
+
+# 4. Deploy production stack
+docker-compose -f docker/docker-compose.production.yml up -d
+
+# 5. Verify deployment
+docker-compose -f docker/docker-compose.production.yml ps
+curl -k https://localhost/health
+```
+
+### Production Docker Compose Features
+
+The production configuration (`docker/docker-compose.production.yml`) includes:
+
+- **Nginx reverse proxy** with TLS 1.2/1.3 termination
+- **Docker secrets** for sensitive credentials (no env vars in plaintext)
+- **Health checks** for all services with proper dependency ordering
+- **Rate limiting** at nginx level (30 req/min for inference, 10 req/min for private inference)
+- **Security headers** (HSTS, CSP, X-Frame-Options, etc.)
+- **Resource limits** to prevent container resource exhaustion
+- **Redis persistence** with AOF for durability
+- **Non-root user** in application containers
+
+### Docker Compose (Development)
 ```yaml
-# docker-compose.yml
+# docker/docker-compose.yml - Development configuration
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: solanalm
-      POSTGRES_USER: solanalm
-      POSTGRES_PASSWORD: password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  gateway:
-    build: .
-    command: python scripts/run_gateway.py
+  coordinator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: solanalm-coordinator
     ports:
       - "8001:8001"
     environment:
       - SOLANA_NETWORK=devnet
-      - DATABASE_URL=postgresql://solanalm:password@postgres/solanalm
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=your-secret-key
     depends_on:
-      - postgres
       - redis
+      - postgres
+    networks:
+      - solanalm-network
 
-  inference-node-1:
-    build: .
-    command: python scripts/run_node.py --type inference --node-id node-1 --wallet WALLET1
+  redis:
+    image: redis:7-alpine
+    container_name: solanalm-redis
     ports:
-      - "8100:8100"
+      - "6379:6379"
+    networks:
+      - solanalm-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: solanalm-postgres
     environment:
-      - GATEWAY_URL=http://gateway:8001
-      - NODE_TYPE=inference
-      - HUGGINGFACE_CACHE=/app/models
+      POSTGRES_DB: solanalm
+      POSTGRES_USER: solanalm
+      POSTGRES_PASSWORD: solanalm
+    ports:
+      - "5432:5432"
     volumes:
-      - model_cache:/app/models
-    depends_on:
-      - gateway
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - solanalm-network
 
-  training-node-1:
-    build: .
-    command: python scripts/run_node.py --type training --node-id train-1 --wallet WALLET2
-    ports:
-      - "8200:8200"
-    environment:
-      - GATEWAY_URL=http://gateway:8001
-      - NODE_TYPE=training
-    depends_on:
-      - gateway
-
-  dashboard:
-    build: .
-    command: python -m core.dashboard.admin_interface
-    ports:
-      - "8080:8080"
-    environment:
-      - GATEWAY_URL=http://gateway:8001
-    depends_on:
-      - gateway
+networks:
+  solanalm-network:
+    driver: bridge
 
 volumes:
   postgres_data:
-  model_cache:
 ```
 
 ### Deployment Commands
@@ -372,11 +372,47 @@ kubectl apply -f k8s-manifests/
 
 ## Production Configuration
 
+### Required Environment Variables
+
+For production (testnet/mainnet), the following environment variables are **required** and validated:
+
+```bash
+# Security (REQUIRED - minimum 32 characters, no weak patterns)
+JWT_SECRET_KEY=your-secure-jwt-secret-at-least-32-characters
+ADMIN_API_KEY=your-secure-admin-api-key-at-least-32-characters
+
+# Database
+DATABASE_URL=postgresql://solanalm:password@postgres:5432/solanalm
+REDIS_URL=redis://redis:6379/0
+
+# CORS (comma-separated origins - no wildcards allowed in production)
+ALLOWED_ORIGINS=https://app.solanalm.io,https://dashboard.solanalm.io
+
+# Solana Configuration
+SOLANA_NETWORK=testnet
+SOLANA_RPC_URL=https://api.testnet.solana.com
+SOLANALM_ENVIRONMENT=testnet
+
+# Treasury Wallet (file path to Solana keypair JSON)
+TREASURY_KEYFILE_PATH=/path/to/treasury-keypair.json
+```
+
+### Docker Secrets Support
+
+For Docker deployments, use the `_FILE` suffix pattern for secrets:
+
+```bash
+# Environment variables with _FILE suffix read from Docker secrets
+JWT_SECRET_KEY_FILE=/run/secrets/jwt_secret
+ADMIN_API_KEY_FILE=/run/secrets/admin_api_key
+TREASURY_KEYFILE_PATH=/run/secrets/treasury_keyfile
+```
+
 ### Security Hardening
 ```bash
-# Generate secure secrets
-python -c "import secrets; print(f'JWT_SECRET={secrets.token_urlsafe(32)}')" >> .env
-python -c "import secrets; print(f'API_KEY_SECRET={secrets.token_urlsafe(32)}')" >> .env
+# Generate secure secrets (production-grade)
+python -c "import secrets; print(secrets.token_urlsafe(48))"  # For JWT_SECRET_KEY
+python -c "import secrets; print(secrets.token_urlsafe(48))"  # For ADMIN_API_KEY
 ```
 
 ### Database Configuration

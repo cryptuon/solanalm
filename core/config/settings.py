@@ -5,10 +5,33 @@ Centralized configuration for all network components.
 """
 
 import os
-from typing import Optional, Dict, Any
+import secrets
+from pathlib import Path
+from typing import Optional, Dict, Any, List
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from enum import Enum
+
+
+def read_secret_file(env_var_name: str, default: Optional[str] = None) -> Optional[str]:
+    """
+    Read a secret from a Docker secret file or environment variable.
+
+    Supports Docker secrets pattern where:
+    - VAR_FILE points to a file containing the secret
+    - VAR contains the secret directly
+
+    Priority: VAR_FILE (if exists) > VAR > default
+    """
+    # Check for _FILE suffix first (Docker secrets pattern)
+    file_path = os.getenv(f"{env_var_name}_FILE")
+    if file_path:
+        path = Path(file_path)
+        if path.exists():
+            return path.read_text().strip()
+
+    # Fall back to direct environment variable
+    return os.getenv(env_var_name, default)
 
 
 class NetworkEnvironment(str, Enum):
@@ -68,15 +91,118 @@ class SolanaLMConfig(BaseSettings):
     anthropic_api_key: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")
     cohere_api_key: Optional[str] = Field(default=None, env="COHERE_API_KEY")
 
-    # Security
+    # Security - NO DEFAULTS for production secrets
     jwt_secret_key: str = Field(
-        default="your-secret-key-change-in-production",
-        env="JWT_SECRET_KEY"
+        default_factory=lambda: os.getenv("JWT_SECRET_KEY", f"dev-only-{secrets.token_hex(16)}"),
+        env="JWT_SECRET_KEY",
+        description="JWT signing key - MUST be set in production"
     )
     admin_api_key: str = Field(
-        default="admin-key-change-in-production",
-        env="ADMIN_API_KEY"
+        default_factory=lambda: os.getenv("ADMIN_API_KEY", f"dev-only-{secrets.token_hex(16)}"),
+        env="ADMIN_API_KEY",
+        description="Admin API key - MUST be set in production"
     )
+
+    # CORS Configuration
+    allowed_origins: List[str] = Field(
+        default_factory=lambda: os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080").split(","),
+        env="ALLOWED_ORIGINS",
+        description="Comma-separated list of allowed CORS origins"
+    )
+
+    # Solana Transaction Settings
+    solana_tx_timeout_seconds: int = Field(default=60, env="SOLANA_TX_TIMEOUT_SECONDS")
+    solana_tx_max_retries: int = Field(default=3, env="SOLANA_TX_MAX_RETRIES")
+    solana_tx_confirmation_commitment: str = Field(default="confirmed", env="SOLANA_TX_CONFIRMATION_COMMITMENT")
+
+    # Treasury Configuration
+    treasury_keyfile_path: Optional[str] = Field(default=None, env="TREASURY_KEYFILE_PATH")
+
+    @model_validator(mode='before')
+    @classmethod
+    def load_secrets_from_files(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Load secrets from Docker secret files if available.
+
+        Supports the Docker secrets pattern where:
+        - JWT_SECRET_KEY_FILE=/run/secrets/jwt_secret
+        - ADMIN_API_KEY_FILE=/run/secrets/admin_api_key
+        - etc.
+        """
+        # Map of field names to their env var names
+        secret_fields = {
+            'jwt_secret_key': 'JWT_SECRET_KEY',
+            'admin_api_key': 'ADMIN_API_KEY',
+            'treasury_keyfile_path': 'TREASURY_KEYFILE_PATH',
+        }
+
+        for field_name, env_var in secret_fields.items():
+            # Check for _FILE suffix (Docker secrets pattern)
+            file_env_var = f"{env_var}_FILE"
+            file_path = os.getenv(file_env_var)
+
+            if file_path:
+                path = Path(file_path)
+                if path.exists():
+                    secret_value = path.read_text().strip()
+                    data[field_name] = secret_value
+
+        return data
+
+    @field_validator('jwt_secret_key', 'admin_api_key')
+    @classmethod
+    def validate_secrets_in_production(cls, v: str, info) -> str:
+        """Ensure secrets are properly set in non-development environments"""
+        env = os.getenv("SOLANALM_ENVIRONMENT", "development")
+
+        if env != "development":
+            # In production/testnet, reject placeholder or weak secrets
+            insecure_patterns = [
+                "your-secret-key",
+                "change-in-production",
+                "dev-only-",
+                "admin123",
+                "secret123"
+            ]
+            for pattern in insecure_patterns:
+                if pattern in v.lower():
+                    raise ValueError(
+                        f"{info.field_name} contains insecure pattern '{pattern}'. "
+                        f"Set a secure value via environment variable in {env} environment."
+                    )
+
+            if len(v) < 32:
+                raise ValueError(
+                    f"{info.field_name} must be at least 32 characters in {env} environment. "
+                    f"Current length: {len(v)}"
+                )
+
+        return v
+
+    @field_validator('allowed_origins')
+    @classmethod
+    def validate_cors_origins(cls, v: List[str]) -> List[str]:
+        """Ensure CORS origins are properly configured"""
+        env = os.getenv("SOLANALM_ENVIRONMENT", "development")
+
+        # Remove empty strings and whitespace
+        origins = [o.strip() for o in v if o.strip()]
+
+        if env != "development":
+            # In production, reject wildcard origins
+            if "*" in origins:
+                raise ValueError(
+                    "Wildcard '*' CORS origin is not allowed in production. "
+                    "Specify explicit origins in ALLOWED_ORIGINS."
+                )
+
+            # Warn about localhost in production
+            for origin in origins:
+                if "localhost" in origin or "127.0.0.1" in origin:
+                    import logging
+                    logging.warning(f"CORS origin '{origin}' contains localhost - not recommended for production")
+
+        return origins if origins else ["http://localhost:3000"]
 
     # Logging
     log_level: str = Field(default="INFO", env="LOG_LEVEL")

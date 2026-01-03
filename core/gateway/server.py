@@ -7,8 +7,10 @@ Main entry point for the hybrid inference + federated learning network.
 Routes requests to nodes and handles Solana payments.
 """
 
-from fastapi import FastAPI, HTTPException, Depends
+import os
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import asyncio
@@ -25,10 +27,14 @@ from core.models.schemas import (
     NodeCapabilities,
     PaymentRequest
 )
+from core.config.settings import get_settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load settings
+settings = get_settings()
 
 app = FastAPI(
     title="SolanaLM Gateway",
@@ -36,12 +42,78 @@ app = FastAPI(
     version="0.1.0"
 )
 
+
+# Security Headers Middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses"""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Core security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # HSTS - only in production with TLS
+        if settings.environment.value != "development":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+        # Content Security Policy
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'"
+        )
+
+        # Permissions Policy
+        response.headers["Permissions-Policy"] = (
+            "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+            "magnetometer=(), microphone=(), payment=(), usb=()"
+        )
+
+        return response
+
+
+# Apply security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS Configuration - Use settings, not hardcoded "*"
+# In production, ALLOWED_ORIGINS must be explicitly set via environment variable
+allowed_origins = settings.allowed_origins
+
+# Validate CORS configuration
+if settings.environment.value != "development":
+    if "*" in allowed_origins:
+        raise ValueError(
+            "CRITICAL: Wildcard '*' CORS origin is not allowed in production. "
+            "Set ALLOWED_ORIGINS environment variable with explicit domains."
+        )
+    logger.info(f"CORS configured for origins: {allowed_origins}")
+else:
+    logger.warning("Development mode: CORS configured for local development origins")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "X-API-Key",
+        "X-Wallet-Address",
+        "X-Wallet-Signature",
+        "X-Wallet-Message",
+        "X-Request-ID"
+    ],
+    expose_headers=["X-Request-ID", "X-Rate-Limit-Remaining", "X-Rate-Limit-Reset"],
+    max_age=3600,  # Cache preflight for 1 hour
 )
 
 # Include OpenAI-compatible router
@@ -245,10 +317,28 @@ async def health_check():
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "core.gateway.server:app",
-        host="0.0.0.0",
-        port=8001,
-        reload=True,
-        log_level="info"
-    )
+    environment = os.getenv("SOLANALM_ENVIRONMENT", "development")
+
+    if environment == "development":
+        # Development mode with auto-reload
+        uvicorn.run(
+            "core.gateway.server:app",
+            host="0.0.0.0",
+            port=8001,
+            reload=True,
+            log_level="debug"
+        )
+    else:
+        # Production/Testnet configuration
+        # NEVER use reload=True in production
+        uvicorn.run(
+            "core.gateway.server:app",
+            host="0.0.0.0",
+            port=int(os.getenv("GATEWAY_PORT", "8001")),
+            reload=False,
+            workers=int(os.getenv("GATEWAY_WORKERS", "4")),
+            log_level="warning",
+            access_log=False,  # Access logging handled by reverse proxy
+            proxy_headers=True,  # Trust X-Forwarded-* headers from nginx
+            forwarded_allow_ips="*",  # Configure based on your reverse proxy setup
+        )

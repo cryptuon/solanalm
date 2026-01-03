@@ -9,22 +9,64 @@ Deploy SolanaLM using Docker and Docker Compose.
 - 8GB+ RAM
 - GPU support (optional, requires NVIDIA Container Toolkit)
 
-## Quick Start
+## Quick Start (Development)
 
 ```bash
 # Clone the repository
 git clone https://github.com/solanalm/solanalm.git
 cd solanalm
 
-# Start all services
-docker-compose up -d
+# Start development services
+docker-compose -f docker/docker-compose.yml up -d
 
 # Check status
-docker-compose ps
+docker-compose -f docker/docker-compose.yml ps
 
 # View logs
-docker-compose logs -f
+docker-compose -f docker/docker-compose.yml logs -f
 ```
+
+## Production Deployment
+
+For production, use the dedicated production Docker Compose with TLS and secrets:
+
+```bash
+# Initialize Docker Swarm (required for secrets)
+docker swarm init
+
+# Create secrets
+echo "your-secure-jwt-secret-at-least-32-chars" | docker secret create jwt_secret -
+echo "your-secure-admin-api-key-at-least-32-chars" | docker secret create admin_api_key -
+echo "postgres-password" | docker secret create postgres_password -
+
+# Create treasury wallet
+solana-keygen new -o treasury-keypair.json --no-bip39-passphrase
+cat treasury-keypair.json | docker secret create treasury_keyfile -
+
+# Set up TLS (place certificates in docker/nginx/ssl/)
+# - fullchain.pem
+# - privkey.pem
+
+# Deploy production stack
+docker stack deploy -c docker/docker-compose.production.yml solanalm
+
+# Or use docker-compose (less secure - secrets as env vars)
+docker-compose -f docker/docker-compose.production.yml up -d
+```
+
+### Production Features
+
+The `docker-compose.production.yml` includes:
+
+| Feature | Description |
+|---------|-------------|
+| **Nginx TLS** | TLS 1.2/1.3 termination with modern ciphers |
+| **Docker Secrets** | Credentials stored securely, not in environment |
+| **Rate Limiting** | Nginx-level limits (30 req/min inference, 10 req/min private) |
+| **Security Headers** | HSTS, CSP, X-Frame-Options, etc. |
+| **Health Checks** | Automatic container health monitoring |
+| **Resource Limits** | Memory/CPU constraints per service |
+| **Non-root User** | Application runs as unprivileged user |
 
 ## Docker Compose Configuration
 

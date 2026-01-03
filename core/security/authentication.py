@@ -244,20 +244,134 @@ class SecurityManager:
         return None
 
     def authenticate_wallet(self, wallet_address: str, signature: str, message: str) -> Optional[User]:
-        """Authenticate using Solana wallet signature"""
-        # In production, verify the signature against the message
-        # This is a simplified implementation
+        """
+        Authenticate using Solana wallet signature (Ed25519)
 
+        The message format should be:
+        "SolanaLM Authentication\nTimestamp: {unix_timestamp}\nNonce: {random_nonce}"
+
+        This prevents replay attacks by including timestamp and nonce.
+        """
         if not self.validate_solana_address(wallet_address):
+            logger.warning(f"Invalid wallet address format: {wallet_address[:8]}...")
             return None
 
-        user_id = self.user_by_wallet.get(wallet_address)
-        if user_id and user_id in self.users:
-            user = self.users[user_id]
-            if user.is_active:
-                return user
+        try:
+            # Decode the wallet address (base58 to bytes - this is the public key)
+            public_key_bytes = base58.b58decode(wallet_address)
 
-        return None
+            # Decode the signature (base58 encoded)
+            signature_bytes = base58.b58decode(signature)
+
+            # Verify signature length (Ed25519 signatures are 64 bytes)
+            if len(signature_bytes) != 64:
+                logger.warning(f"Invalid signature length: {len(signature_bytes)}, expected 64")
+                return None
+
+            # Parse and validate message timestamp
+            if not self._validate_message_timestamp(message):
+                logger.warning("Message timestamp expired or invalid")
+                return None
+
+            # Verify the signature using nacl (PyNaCl) if available
+            try:
+                import nacl.signing
+                import nacl.exceptions
+
+                verify_key = nacl.signing.VerifyKey(public_key_bytes)
+
+                try:
+                    # This will raise BadSignatureError if verification fails
+                    verify_key.verify(message.encode('utf-8'), signature_bytes)
+                except nacl.exceptions.BadSignatureError:
+                    logger.warning(f"Signature verification failed for wallet: {wallet_address[:8]}...")
+                    return None
+
+            except ImportError:
+                # PyNaCl not installed - log warning and skip verification in development
+                import os
+                if os.getenv("SOLANALM_ENVIRONMENT", "development") != "development":
+                    logger.error("PyNaCl not installed - wallet signature verification unavailable in production")
+                    return None
+                logger.warning("PyNaCl not installed - skipping signature verification in development mode")
+
+            # Signature is valid - look up or create user
+            user_id = self.user_by_wallet.get(wallet_address)
+
+            if user_id and user_id in self.users:
+                user = self.users[user_id]
+                if user.is_active:
+                    user.last_login = datetime.utcnow()
+                    logger.info(f"Wallet authentication successful: {wallet_address[:8]}...")
+                    return user
+                else:
+                    logger.warning(f"Wallet user is inactive: {wallet_address[:8]}...")
+                    return None
+
+            # Auto-register new wallet users
+            return self._auto_register_wallet_user(wallet_address)
+
+        except Exception as e:
+            logger.error(f"Wallet authentication error: {e}")
+            return None
+
+    def _validate_message_timestamp(self, message: str, max_age_seconds: int = 300) -> bool:
+        """Validate that the message timestamp is within acceptable window (default 5 minutes)"""
+        try:
+            import time as time_module
+
+            for line in message.split('\n'):
+                if line.startswith('Timestamp:'):
+                    timestamp = int(line.split(':')[1].strip())
+                    current_time = int(time_module.time())
+
+                    # Check timestamp is within acceptable window
+                    if abs(current_time - timestamp) > max_age_seconds:
+                        return False
+                    return True
+
+            # No timestamp found in message
+            logger.warning("No timestamp found in authentication message")
+            return False
+        except (ValueError, IndexError) as e:
+            logger.warning(f"Failed to parse message timestamp: {e}")
+            return False
+
+    def _auto_register_wallet_user(self, wallet_address: str) -> User:
+        """Auto-register a new wallet-based user"""
+        user_id = secrets.token_hex(16)
+        user = User(
+            user_id=user_id,
+            username=f"wallet_{wallet_address[:8]}",
+            email=f"{wallet_address[:8]}@wallet.solanalm.local",
+            role=UserRole.CLIENT,
+            wallet_address=wallet_address
+        )
+
+        self.users[user_id] = user
+        self.user_by_wallet[wallet_address] = user_id
+
+        logger.info(f"Auto-registered wallet user: {wallet_address[:8]}...")
+        return user
+
+    def generate_auth_challenge(self, wallet_address: str) -> Dict[str, Any]:
+        """Generate authentication challenge for wallet signing"""
+        import time as time_module
+
+        if not self.validate_solana_address(wallet_address):
+            raise ValueError("Invalid wallet address format")
+
+        nonce = secrets.token_hex(16)
+        timestamp = int(time_module.time())
+
+        message = f"SolanaLM Authentication\nTimestamp: {timestamp}\nNonce: {nonce}"
+
+        return {
+            'message': message,
+            'nonce': nonce,
+            'timestamp': timestamp,
+            'wallet_address': wallet_address
+        }
 
     def create_jwt_token(self, user: User) -> str:
         """Create a JWT token for a user"""
@@ -444,20 +558,52 @@ security_manager: Optional[SecurityManager] = None
 
 def init_security_manager(jwt_secret: str) -> SecurityManager:
     """Initialize global security manager"""
+    import os
     global security_manager
+
+    # Validate JWT secret strength
+    env = os.getenv("SOLANALM_ENVIRONMENT", "development")
+    if env != "development":
+        if len(jwt_secret) < 32:
+            raise ValueError("JWT secret must be at least 32 characters in production")
+        insecure_patterns = ["your-secret-key", "change-in-production", "dev-only-", "admin123"]
+        for pattern in insecure_patterns:
+            if pattern in jwt_secret.lower():
+                raise ValueError(f"JWT secret contains insecure pattern '{pattern}'")
+
     security_manager = SecurityManager(jwt_secret)
 
-    # Create default admin user (in production, do this via secure setup)
-    try:
-        admin_user = security_manager.create_user(
-            username="admin",
-            email="admin@solanalm.com",
-            password="admin123",  # Change in production!
-            role=UserRole.ADMIN
-        )
-        logger.info("Created default admin user")
-    except ValueError:
-        pass  # User already exists
+    # DO NOT create default admin user with hardcoded credentials
+    # Admin user should be created via:
+    # 1. First-run setup script with secure password input
+    # 2. Environment variable ADMIN_WALLET_ADDRESS for wallet-based admin
+    # 3. Database seed with properly hashed password
+
+    admin_wallet = os.getenv("ADMIN_WALLET_ADDRESS")
+    if admin_wallet:
+        # Register admin wallet for wallet-based authentication
+        try:
+            if security_manager.validate_solana_address(admin_wallet):
+                admin_user = security_manager.create_user(
+                    username=f"admin_{admin_wallet[:8]}",
+                    email=f"admin@solanalm.local",
+                    password=secrets.token_urlsafe(32),  # Random password, use wallet auth
+                    role=UserRole.ADMIN,
+                    wallet_address=admin_wallet
+                )
+                logger.info(f"Admin wallet configured: {admin_wallet[:8]}...")
+            else:
+                logger.warning(f"Invalid ADMIN_WALLET_ADDRESS format: {admin_wallet[:8]}...")
+        except ValueError as e:
+            logger.debug(f"Admin wallet setup: {e}")
+    else:
+        if env == "development":
+            logger.info("Development mode: No admin configured. Use API keys or set ADMIN_WALLET_ADDRESS")
+        else:
+            logger.warning(
+                "No ADMIN_WALLET_ADDRESS configured. "
+                "Administrative functions require wallet-based authentication."
+            )
 
     return security_manager
 

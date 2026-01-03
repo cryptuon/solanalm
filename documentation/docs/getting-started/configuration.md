@@ -29,13 +29,30 @@ WALLET_ADDRESS=YourSolanaWalletAddress
 ### Security Settings
 
 ```bash
-# Authentication
-JWT_SECRET=your-secure-jwt-secret-key
-API_KEY_SECRET=your-api-key-secret
+# Authentication (REQUIRED in production - minimum 32 characters)
+JWT_SECRET_KEY=your-secure-jwt-secret-key-at-least-32-chars
+ADMIN_API_KEY=your-secure-admin-api-key-at-least-32-chars
 
-# Rate Limiting
-RATE_LIMIT_PER_MINUTE=100
-RATE_LIMIT_PER_HOUR=1000
+# CORS Origins (comma-separated, no wildcards in production)
+ALLOWED_ORIGINS=https://app.yoursite.com,https://dashboard.yoursite.com
+
+# Treasury Wallet (for Solana transactions)
+TREASURY_KEYFILE_PATH=/path/to/treasury-keypair.json
+
+# Solana Transaction Settings
+SOLANA_TX_TIMEOUT_SECONDS=60
+SOLANA_TX_MAX_RETRIES=3
+```
+
+### Docker Secrets (Production)
+
+For Docker deployments, use the `_FILE` suffix pattern:
+
+```bash
+# Secrets are read from files instead of environment variables
+JWT_SECRET_KEY_FILE=/run/secrets/jwt_secret
+ADMIN_API_KEY_FILE=/run/secrets/admin_api_key
+TREASURY_KEYFILE_PATH=/run/secrets/treasury_keyfile
 ```
 
 ### Database Settings (Production)
@@ -63,19 +80,25 @@ COHERE_API_KEY=...
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `SOLANALM_ENVIRONMENT` | `development` | Environment: development, testnet, mainnet |
 | `SOLANA_NETWORK` | `devnet` | Solana network to connect to |
 | `SOLANA_RPC_URL` | Auto | RPC endpoint URL |
 | `GATEWAY_HOST` | `localhost` | Gateway bind address |
 | `GATEWAY_PORT` | `8001` | Gateway port |
+| `GATEWAY_WORKERS` | `1` | Number of Uvicorn workers |
 | `NODE_ID` | Auto-generated | Unique node identifier |
 | `WALLET_ADDRESS` | Required | Solana wallet for payments |
-| `JWT_SECRET` | Required | Secret for JWT tokens |
-| `API_KEY_SECRET` | Required | Secret for API key generation |
-| `RATE_LIMIT_PER_MINUTE` | `100` | Requests per minute limit |
-| `DATABASE_URL` | SQLite | Database connection string |
-| `REDIS_URL` | None | Redis connection for caching |
+| `JWT_SECRET_KEY` | Required* | Secret for JWT tokens (min 32 chars in production) |
+| `ADMIN_API_KEY` | Required* | Admin API key (min 32 chars in production) |
+| `ALLOWED_ORIGINS` | localhost | Comma-separated CORS origins |
+| `DATABASE_URL` | PostgreSQL | Database connection string |
+| `REDIS_URL` | localhost | Redis connection for caching |
+| `TREASURY_KEYFILE_PATH` | None | Path to Solana keypair JSON |
+| `SOLANA_TX_TIMEOUT_SECONDS` | `60` | Transaction confirmation timeout |
+| `SOLANA_TX_MAX_RETRIES` | `3` | Max transaction retry attempts |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
-| `DEBUG` | `false` | Enable debug mode |
+
+*Required in production environments with strict validation
 
 ## Network Environments
 
@@ -102,16 +125,40 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/solanalm_test
 
 ### Production
 
-Full production deployment:
+Full production deployment with security validation:
 
 ```bash
+# Environment (triggers security validation)
+SOLANALM_ENVIRONMENT=mainnet
+
+# Solana Configuration
 SOLANA_NETWORK=mainnet-beta
 SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+
+# Security (REQUIRED - validated at startup)
+JWT_SECRET_KEY=your-production-jwt-secret-at-least-32-characters
+ADMIN_API_KEY=your-production-admin-api-key-at-least-32-chars
+ALLOWED_ORIGINS=https://app.solanalm.io,https://dashboard.solanalm.io
+
+# Database
 DATABASE_URL=postgresql://user:pass@prod-db:5432/solanalm
 REDIS_URL=redis://prod-redis:6379
-DEBUG=false
+
+# Treasury Wallet
+TREASURY_KEYFILE_PATH=/etc/solanalm/treasury-keypair.json
+
+# Logging
 LOG_LEVEL=WARNING
 ```
+
+#### Production Validation Rules
+
+In production environments (`SOLANALM_ENVIRONMENT=testnet` or `mainnet`):
+
+1. **JWT_SECRET_KEY** and **ADMIN_API_KEY** must be at least 32 characters
+2. Secrets cannot contain weak patterns: `your-secret-key`, `dev-only-`, `admin123`, `secret123`
+3. **ALLOWED_ORIGINS** cannot contain `*` (wildcard)
+4. Localhost origins generate warnings
 
 ## Node Configuration
 
@@ -234,24 +281,41 @@ CUDA_VISIBLE_DEVICES=0,1
 
     For production deployments:
 
-    - Never commit `.env` files to version control
-    - Use secrets management (Vault, AWS Secrets Manager)
-    - Enable TLS/SSL for all endpoints
+    - Never commit `.env` files or keypairs to version control
+    - Use Docker secrets or secrets management (Vault, AWS Secrets Manager)
+    - Enable TLS/SSL for all endpoints (use `docker/nginx/nginx.conf`)
+    - Use secrets at least 32 characters long
     - Rotate JWT secrets regularly
-    - Use strong, unique API keys
+    - Fund treasury wallet before processing payments
 
 ### Generating Secure Secrets
 
-```python
-import secrets
+```bash
+# Generate production-grade secrets
+python -c "import secrets; print(secrets.token_urlsafe(48))"  # JWT_SECRET_KEY
+python -c "import secrets; print(secrets.token_urlsafe(48))"  # ADMIN_API_KEY
 
-# Generate a secure JWT secret
-jwt_secret = secrets.token_urlsafe(32)
-print(f"JWT_SECRET={jwt_secret}")
+# Create treasury wallet
+solana-keygen new -o treasury-keypair.json --no-bip39-passphrase
 
-# Generate API key secret
-api_secret = secrets.token_urlsafe(32)
-print(f"API_KEY_SECRET={api_secret}")
+# Fund on testnet
+solana airdrop 2 $(solana-keygen pubkey treasury-keypair.json) --url testnet
+```
+
+### Docker Secrets Setup
+
+```bash
+# Initialize Docker Swarm
+docker swarm init
+
+# Create secrets from generated values
+echo "your-48-char-jwt-secret" | docker secret create jwt_secret -
+echo "your-48-char-admin-key" | docker secret create admin_api_key -
+cat treasury-keypair.json | docker secret create treasury_keyfile -
+echo "postgres-password" | docker secret create postgres_password -
+
+# Deploy with secrets
+docker stack deploy -c docker/docker-compose.production.yml solanalm
 ```
 
 ## Next Steps

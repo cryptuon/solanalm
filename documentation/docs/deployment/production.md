@@ -6,14 +6,96 @@ Best practices for deploying SolanaLM in production environments.
 
 Before going to production, ensure:
 
-- [ ] Security hardening complete
-- [ ] TLS/SSL configured
-- [ ] Rate limiting enabled
+- [ ] All secrets are set via environment variables or Docker secrets (no hardcoded values)
+- [ ] JWT_SECRET_KEY and ADMIN_API_KEY are at least 32 characters
+- [ ] TLS/SSL certificates are in place
+- [ ] CORS origins are explicitly configured (no wildcards)
+- [ ] Rate limiting is enabled (nginx or application level)
+- [ ] Treasury wallet is funded with SOL for transactions
+- [ ] Database and Redis are configured with proper credentials
 - [ ] Monitoring and alerting set up
 - [ ] Backup strategy implemented
-- [ ] Disaster recovery plan tested
 - [ ] Load testing completed
-- [ ] Documentation updated
+
+## Quick Production Deployment
+
+### Using Docker Compose (Recommended)
+
+```bash
+# 1. Clone and navigate to project
+cd solanalm
+
+# 2. Create Docker secrets
+docker swarm init  # Required for secrets
+echo "$(python -c 'import secrets; print(secrets.token_urlsafe(48))')" | docker secret create jwt_secret -
+echo "$(python -c 'import secrets; print(secrets.token_urlsafe(48))')" | docker secret create admin_api_key -
+echo "secure-postgres-password" | docker secret create postgres_password -
+
+# 3. Create treasury wallet
+solana-keygen new -o treasury-keypair.json --no-bip39-passphrase
+cat treasury-keypair.json | docker secret create treasury_keyfile -
+
+# 4. Fund treasury (testnet)
+solana airdrop 2 $(solana-keygen pubkey treasury-keypair.json) --url testnet
+
+# 5. Set up TLS certificates
+mkdir -p docker/nginx/ssl
+# Copy your certificates:
+# - docker/nginx/ssl/fullchain.pem
+# - docker/nginx/ssl/privkey.pem
+
+# 6. Deploy
+docker stack deploy -c docker/docker-compose.production.yml solanalm
+
+# 7. Verify
+curl -k https://localhost/health
+```
+
+## Environment Configuration
+
+### Required Variables (Production)
+
+```bash
+# Security - REQUIRED (validated at startup)
+JWT_SECRET_KEY=<min 32 chars, no weak patterns like 'secret123'>
+ADMIN_API_KEY=<min 32 chars>
+
+# Environment
+SOLANALM_ENVIRONMENT=testnet  # or mainnet
+SOLANA_NETWORK=testnet
+SOLANA_RPC_URL=https://api.testnet.solana.com
+
+# Database
+DATABASE_URL=postgresql://user:pass@host:5432/solanalm
+REDIS_URL=redis://redis:6379/0
+
+# CORS (no wildcards in production)
+ALLOWED_ORIGINS=https://app.yoursite.com,https://dashboard.yoursite.com
+
+# Treasury
+TREASURY_KEYFILE_PATH=/path/to/treasury-keypair.json
+```
+
+### Docker Secrets Pattern
+
+The application supports Docker secrets via `_FILE` suffix:
+
+```bash
+# Instead of:
+JWT_SECRET_KEY=actual-secret
+
+# Use:
+JWT_SECRET_KEY_FILE=/run/secrets/jwt_secret
+```
+
+### Validation Rules
+
+In non-development environments, the application validates:
+
+1. **Secret Length**: JWT_SECRET_KEY and ADMIN_API_KEY must be ≥32 characters
+2. **Insecure Patterns**: Rejects values containing: `your-secret-key`, `change-in-production`, `dev-only-`, `admin123`, `secret123`
+3. **CORS Wildcards**: `*` is rejected in production
+4. **Localhost CORS**: Warns about localhost origins in production
 
 ## Infrastructure Requirements
 
