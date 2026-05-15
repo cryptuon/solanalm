@@ -1,7 +1,7 @@
 site_name: SolanaLM Documentation
 site_description: Enterprise-Grade Decentralized AI Network on Solana
 site_author: SolanaLM Team
-site_url: https://solanalm.docs.cryptuon.com/
+site_url: https://docs.cryptuon.com/solanalm/
 
 repo_name: cryptuon/solanalm
 repo_url: https://github.com/cryptuon/solanalm
