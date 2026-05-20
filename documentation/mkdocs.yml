@@ -102,10 +102,6 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/solanalm/solanalm
-    - icon: fontawesome/brands/discord
-      link: https://discord.gg/solanalm
-    - icon: fontawesome/brands/twitter
-      link: https://twitter.com/SolanaLM
+      link: https://github.com/cryptuon/solanalm
 
-copyright: Copyright &copy; 2025 SolanaLM Team
+copyright: Copyright &copy; 2026 cryptuon

@@ -1,6 +1,12 @@
 # SolanaLM Documentation
 
-**Enterprise-Grade Decentralized AI Network on Solana**
+**Decentralized AI Network on Solana**
+
+!!! warning "Under active development"
+
+    SolanaLM is under active development. APIs, schemas, and on-chain
+    layouts may change. Production use at your own risk.
+    Issues + PRs welcome — see the [GitHub repo](https://github.com/cryptuon/solanalm).
 
 SolanaLM is a hybrid decentralized network combining LLM inference and federated learning on Solana. Nodes earn SOL through dual revenue streams: serving inference requests and participating in training rounds.
 
@@ -52,7 +58,7 @@ Get up and running in minutes:
 
 ```bash
 # Clone and setup
-git clone https://github.com/solanalm/solanalm.git
+git clone https://github.com/cryptuon/solanalm.git
 cd solanalm && poetry install && poetry shell
 
 # Start development environment
@@ -155,9 +161,9 @@ response = client.chat.completions.create(
 
 ## Community & Support
 
-- **GitHub Issues**: [Report bugs and request features](https://github.com/solanalm/solanalm/issues)
-- **Discord**: [Join the community](https://discord.gg/solanalm)
-- **Twitter**: [@SolanaLM](https://twitter.com/SolanaLM)
+- **GitHub Issues**: [Report bugs and request features](https://github.com/cryptuon/solanalm/issues)
+- **GitHub Discussions**: [Ask questions and share ideas](https://github.com/cryptuon/solanalm/discussions)
+- **Marketing site**: [solanalm.cryptuon.com](https://solanalm.cryptuon.com/)
 
 ---
 
