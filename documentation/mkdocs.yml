@@ -30,6 +30,7 @@ theme:
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.indexes
     - search.suggest
     - search.highlight
     - content.code.copy
@@ -75,29 +76,31 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started:
-    - Installation: getting-started/installation.md
-    - Quick Start: getting-started/quickstart.md
-    - Configuration: getting-started/configuration.md
-  - User Guides:
-    - Python SDK: guides/python-sdk.md
-    - Running Nodes: guides/running-nodes.md
-    - Terminal TUI: guides/tui.md
-    - Web Dashboard: guides/frontend-dashboard.md
-    - Federated Learning: guides/federated-learning.md
-    - Privacy Features: guides/privacy.md
+  - Docs:
+    - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+      - Configuration: getting-started/configuration.md
+    - User Guides:
+      - Python SDK: guides/python-sdk.md
+      - Running Nodes: guides/running-nodes.md
+      - Terminal TUI: guides/tui.md
+      - Web Dashboard: guides/frontend-dashboard.md
+      - Federated Learning: guides/federated-learning.md
+      - Privacy Features: guides/privacy.md
+    - Architecture:
+      - Overview: architecture/overview.md
+      - Node Types: architecture/nodes.md
+      - Payment System: architecture/payments.md
   - API Reference:
     - Gateway API: api/gateway.md
     - Client SDK: api/client-sdk.md
     - OpenAI Compatibility: api/openai-compat.md
-  - Architecture:
-    - Overview: architecture/overview.md
-    - Node Types: architecture/nodes.md
-    - Payment System: architecture/payments.md
-  - Deployment:
-    - Docker: deployment/docker.md
-    - Kubernetes: deployment/kubernetes.md
-    - Production: deployment/production.md
+  - Project:
+    - Deployment:
+      - Docker: deployment/docker.md
+      - Kubernetes: deployment/kubernetes.md
+      - Production: deployment/production.md
 
 extra:
   social:
