@@ -8,6 +8,8 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Poetry](https://img.shields.io/badge/dependency-poetry-blue)](https://python-poetry.org/)
 
+**[🌐 Site](https://solanalm.cryptuon.com/) · [📚 Docs](https://docs.cryptuon.com/solanalm/) · [🔬 Cryptuon Research](https://github.com/cryptuon)**
+
 Hybrid decentralized network combining LLM inference and federated learning on Solana. Nodes earn SOL through dual revenue streams: serving inference requests and participating in training rounds.
 
 - **Docs:** <https://docs.cryptuon.com/solanalm/>
@@ -406,3 +408,13 @@ Licensed under the MIT License — see [LICENSE](LICENSE) for details.
 - **Documentation**: <https://docs.cryptuon.com/solanalm/>
 - **Issues**: <https://github.com/cryptuon/solanalm/issues>
 - **Discussions**: <https://github.com/cryptuon/solanalm/discussions>
+
+---
+
+## Part of Cryptuon Research
+
+`solanalm` is one of [20 open-source blockchain-infrastructure projects](https://www.cryptuon.com/projects) from **[Cryptuon Research](https://www.cryptuon.com)** — blockchain theory, shipped as protocols.
+
+**Related projects:** [Mentat](https://mentat.cryptuon.com/) · [DFPN](https://dfpn.cryptuon.com/) · [SolanaVault](https://solanavault.cryptuon.com/)
+
+Docs: [docs.cryptuon.com/solanalm](https://docs.cryptuon.com/solanalm/) · Contact: [contact@cryptuon.com](mailto:contact@cryptuon.com)

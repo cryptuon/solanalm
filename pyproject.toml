@@ -1,9 +1,22 @@
 [tool.poetry]
 name = "solanalm"
 version = "0.1.0"
-description = ""
-authors = ["Dipankar Sarkar <me@dipankar.name>"]
+description = "Decentralized network for LLM inference and federated learning on Solana."
+authors = ["Cryptuon Research <contact@cryptuon.com>"]
 readme = "README.md"
+license = "MIT"
+homepage = "https://solanalm.cryptuon.com/"
+repository = "https://github.com/cryptuon/solanalm"
+documentation = "https://docs.cryptuon.com/solanalm/"
+keywords = ["solana", "machine-learning", "llm", "federated-learning", "depin", "ai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Distributed Computing",
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"

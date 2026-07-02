@@ -2,6 +2,14 @@
   "name": "solanalm-dashboard",
   "version": "0.1.0",
   "description": "SolanaLM Node Dashboard - Vue.js + Tailwind CSS",
+  "private": true,
+  "author": "Cryptuon Research <contact@cryptuon.com>",
+  "license": "MIT",
+  "homepage": "https://solanalm.cryptuon.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cryptuon/solanalm.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

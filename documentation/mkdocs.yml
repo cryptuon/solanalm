@@ -1,6 +1,6 @@
 site_name: SolanaLM Documentation
 site_description: Enterprise-Grade Decentralized AI Network on Solana
-site_author: SolanaLM Team
+site_author: Cryptuon Research
 site_url: https://docs.cryptuon.com/solanalm/
 
 repo_name: cryptuon/solanalm
@@ -103,8 +103,10 @@ nav:
       - Production: deployment/production.md
 
 extra:
+  homepage: https://solanalm.cryptuon.com/
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/cryptuon/solanalm
 
-copyright: Copyright &copy; 2026 cryptuon
+copyright: >
+  &copy; 2026 <a href="https://www.cryptuon.com">Cryptuon Research</a>
