@@ -8,12 +8,15 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Poetry](https://img.shields.io/badge/dependency-poetry-blue)](https://python-poetry.org/)
 
-**[🌐 Site](https://solanalm.cryptuon.com/) · [📚 Docs](https://docs.cryptuon.com/solanalm/) · [🔬 Cryptuon Research](https://github.com/cryptuon)**
+**[🌐 Site](https://solanalm.cryptuon.com/) · [📚 Docs](https://docs.cryptuon.com/solanalm/) · [🗺️ Roadmap](ROADMAP.md) · [🔬 Cryptuon Research](https://github.com/cryptuon)**
 
-Hybrid decentralized network combining LLM inference and federated learning on Solana. Nodes earn SOL through dual revenue streams: serving inference requests and participating in training rounds.
+**On-chain, OpenAI-compatible AI inference the agent economy can pay for.** SolanaLM is a hybrid decentralized network combining LLM inference and federated learning, with settlement and node incentives on Solana. GPU operators earn SOL through dual revenue streams — serving inference requests and contributing GPU cycles to training rounds — while developers get an endpoint that swaps in for a centralized API with a base-URL change.
+
+It sits at the intersection of two 2026 markets: **DePIN GPU compute** (idle hardware looking for paid work) and **on-chain, verifiable AI** (machine-payable inference with an on-chain audit trail, heading toward attested results). See [Why this matters in 2026](#why-this-matters-in-2026) and the [ROADMAP](ROADMAP.md).
 
 - **Docs:** <https://docs.cryptuon.com/solanalm/>
 - **Marketing:** <https://solanalm.cryptuon.com/>
+- **Roadmap:** [ROADMAP.md](ROADMAP.md)
 - **Repo:** <https://github.com/cryptuon/solanalm>
 
 ## Quick Start
@@ -29,6 +32,36 @@ python scripts/quick_start.py
 # Test the system
 python scripts/test_end_to_end.py
 ```
+
+## Why this matters in 2026
+
+The relevant question is no longer "can inference be decentralized" — it's "who pays for
+it, and can they trust the result." SolanaLM is built around two converging trends:
+
+- **The agent economy needs machine-payable inference.** Autonomous agents make more
+  inference calls than humans, at thinner margins, and increasingly hold their own
+  wallets. Monthly invoices and seat licenses don't fit; **per-request micropayments**
+  do. Solana's ~400ms finality and ~$0.00025 fees make settling a payment per call
+  economically real instead of a rounding error swallowed by gas. Point an OpenAI SDK at
+  the gateway, pass a wallet as the API key, and an agent pays as it goes.
+
+- **DePIN GPU compute needs a serving layer, not just a marketplace.** Idle GPUs are
+  abundant; a working, monetized, OpenAI-compatible serving stack on top of them is not.
+  SolanaLM nodes are containers that phone home to a registry, so they drop straight onto
+  the cheapest inference-capable hardware — DePIN networks (io.net, Akash, Render,
+  Nosana) or marketplace/spot GPUs (Vast.ai, RunPod) — and turn idle cycles into SOL.
+
+- **On-chain today, verifiable next.** Every request already leaves an on-chain audit
+  trail; settlement and metering are on-chain-anchored. The [roadmap](ROADMAP.md) moves
+  progressively from "trust the operator" toward **verifiable inference** — signed
+  attestation of which model produced a result, sampled re-execution, and (as research
+  matures) cryptographic proofs — so a paying agent can verify what it bought.
+
+Honest framing: SolanaLM is early software (v0.1.x). It's a working reference
+implementation of this direction — the settlement, metering, reputation, and
+verification work needed to make it a network strangers pay to use is tracked in the
+**[production-viability checklist](ROADMAP.md#production-viability-checklist)**, alongside
+the **[cheapest path to production](ROADMAP.md#cheapest-path-to-production)**.
 
 ## Key Features
 
@@ -321,6 +354,13 @@ python scripts/test_end_to_end.py
 
 ## Economic Model
 
+Designed for the agent economy: pay per request, settle on-chain, meter in aggregate.
+Callers (increasingly autonomous agents with their own wallets) fund a session and pay
+as work completes; operators earn SOL on every served request. For how per-request
+settlement is kept cheap and how the metering hardens toward production, see the
+[cheapest path to production](ROADMAP.md#cheapest-path-to-production) and the
+[payment settlement and metering](ROADMAP.md#payment-settlement-and-metering) checklist.
+
 ### Dual Revenue Streams
 1. **Inference Revenue**: Earn SOL for processing inference requests
 2. **Training Revenue**: Earn SOL for participating in FL rounds
@@ -365,6 +405,11 @@ The canonical documentation lives at <https://docs.cryptuon.com/solanalm/>
 - [Gateway API](https://docs.cryptuon.com/solanalm/api/gateway/)
 - [Architecture Overview](https://docs.cryptuon.com/solanalm/architecture/overview/)
 - [Deployment](https://docs.cryptuon.com/solanalm/deployment/docker/)
+
+Direction and milestones: [ROADMAP.md](ROADMAP.md) — vision, the
+[cheapest path to production](ROADMAP.md#cheapest-path-to-production), and the
+production-viability checklist (verification, settlement, reputation, availability, API
+stability).
 
 Marketing site: <https://solanalm.cryptuon.com/>
 
